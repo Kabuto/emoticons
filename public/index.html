@@ -15,6 +15,7 @@
 	p {
 		font-size: 40px;
 		margin: 0.3em;
+		min-height: 54px;
 	}
 
 	.control {
@@ -55,47 +56,78 @@ GUI:
 
 */
 
-let rows = decodeURIComponent(location.hash.replace(/^#/,"")).split(/\n/).filter(row=>row);
+function init() {
+	document.body.innerHTML = "";
 
-for (let row of rows) {
-	document.body.appendChild(document.createElement("p")).textContent = row;
-	document.body.appendChild(document.createElement("hr"));
-}
+	let controls = document.body.appendChild(document.createElement("div"));
 
-let controls = document.body.appendChild(document.createElement("div"));
-
-let iconRow = document.body.appendChild(document.createElement("p"));
-
-let appendControl = (tag, clazz, text, onclick) => {
-	let control = controls.appendChild(document.createElement(tag));
-	control.className = "control control-"+clazz;
-	control.textContent = text;
-	control.onmousedown = () => false;
-	control.onclick = onclick;
-	return control;
-}
-
-let updateLink = () => {
-	link.href = "#" + encodeURIComponent([...rows, ...(iconRow.textContent ? [iconRow.textContent] : [])].join("\n"));
-}
-
-appendControl("span", "add", "+", () => {
-	iconRow.appendChild(document.createElement("span")).textContent = icons[Math.floor(Math.random()*icons.length)];
-	updateLink();
-});
-
-appendControl("span", "remove", "-", () => {
-	if (iconRow.lastChild) {
-		iconRow.removeChild(iconRow.lastChild);
-		updateLink();
+	let appendControl = (tag, clazz, text, onclick) => {
+		let control = controls.appendChild(document.createElement(tag));
+		control.className = "control control-"+clazz;
+		control.textContent = text;
+		control.onmousedown = () => false;
+		control.onclick = onclick;
+		return control;
 	}
-});
 
+	appendControl("span", "reset", "↺", () => {
+		history.pushState(null,null,"#");
+		init();
+	});
 
+	let iconRow = null;
 
-let link = appendControl("a", "link", "🔗", () => {
-	location.href = link.href;
-	location.reload();
-});
+	for (let row of decodeURIComponent(location.hash.replace(/^#/,"")).split(/-/)) {
+		if (iconRow) {
+			document.body.appendChild(document.createElement("hr"));
+		}
+		iconRow = document.body.appendChild(document.createElement("p"));
+		for (let icon of row.split(/\./)) if (icon) {
+			iconRow.appendChild(document.createElement("span")).textContent = icon;
+		}
+	}
+
+	if (!iconRow) {
+		iconRow = document.body.appendChild(document.createElement("p"));
+	}
+
+	let updateLink = () => {
+		link.href = "#" + encodeURIComponent([...document.body.children].filter(child => child.tagName === "P").map(p => [...p.children].map(span => span.textContent).join(".")).join("-"));
+		history.replaceState(null, null, link.href);
+	}
+	
+	controls = document.body.appendChild(document.createElement("div"));
+
+	appendControl("span", "add", "+", () => {
+		if (!iconRow.lastChild) {
+			history.pushState(null,null,location.href);
+			console.log("pushed state");
+		}
+		iconRow.appendChild(document.createElement("span")).textContent = icons[Math.floor(Math.random()*icons.length)];
+		updateLink();
+	});
+
+	appendControl("span", "remove", "-", () => {
+		if (iconRow.lastChild) {
+			iconRow.removeChild(iconRow.lastChild);
+			updateLink();
+			if (!iconRow.lastChild) {
+				history.popState();
+			}
+		}
+	});
+
+	let link = appendControl("a", "link", "🔗", () => {
+		if (iconRow.textContent) {
+			iconRow = document.body.appendChild(document.createElement("p"));
+			updateLink();
+			init();
+		}
+	});
+}
+
+init();
+
+window.addEventListener("hashchange", init);
 
 </script>
